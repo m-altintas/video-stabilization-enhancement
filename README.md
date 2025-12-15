@@ -68,42 +68,12 @@ python pipeline.py -i input_video.mp4 -o output_video.mp4 --crop-ratio 0.8
 - `--batch-size`: Number of frames to load in batches for I/O optimization (default: 4). Increase for better GPU utilization.
 - `--gpu-stabilization`: Use GPU acceleration for stabilization (requires OpenCV with CUDA support)
 - `--async-sharpening`: Use async processing with threading for sharpening (overlaps I/O and GPU computation for faster processing)
+- `--output-both`: Output both stabilized-only and stabilized+sharpened versions (stabilized-only version saved with "_stabilized_only" suffix)
 
-### Example
+### Prefered Usage
 
 ```bash
-# Stabilize and sharpen with 0.8 crop ratio
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8
-
-# With custom progress interval
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.75 --progress-interval 10
-
-# Force GPU usage (if available)
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --device cuda
-
-# Force CPU usage
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --device cpu
-
-# Use GPU with FP32 precision (slower but more accurate)
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --device cuda --no-half
-
-# With trajectory plotting
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --traj-plot
-
-# With face enhancement (for videos with faces)
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --face-enhance
-
-# With tiling for large videos (if you run out of memory)
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --tile 400
-
-# With GPU acceleration for stabilization (requires OpenCV with CUDA)
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --gpu-stabilization
-
-# With async sharpening for better GPU utilization
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --async-sharpening
-
-# Maximum performance: GPU stabilization + async sharpening + larger batch size
-python pipeline.py -i shaky_video.mp4 -o stable_sharp_video.mp4 --crop-ratio 0.8 --gpu-stabilization --async-sharpening --batch-size 8
+python pipeline.py -i input_video.mp4 -o output_video.mp4 --crop-ratio 0.85 --device cuda --no-preserve-bitrate --batch-size 64 --gpu-stabilization --async-sharpening
 ```
 
 ## How It Works
@@ -127,11 +97,14 @@ The sharpening process:
 ## File Structure
 
 ```
-merged-pipeline/
+video-stabilization-enhancement/
 ├── L1optimal_lpp.py      # L1 optimization core (stabilization algorithm)
 ├── stabilization.py      # Video stabilization module
 ├── sharpen.py            # Video sharpening and upscaling module
 ├── pipeline.py           # Main pipeline script
+├── video_utils.py        # Video utility functions
+├── create_comparison_video.py  # Comparison video creation utility
+├── requirements.txt      # Python dependencies
 └── README.md             # This file
 ```
 
@@ -183,24 +156,24 @@ The pipeline automatically optimizes GPU utilization:
 - **Batch frame loading**: Loads frames in batches to overlap I/O with GPU processing
 - **CUDA optimizations**: Enables cuDNN benchmarking for faster processing
 - **Memory-aware**: Automatically adjusts settings based on available GPU memory
-- **GPU-accelerated stabilization**: Use `--gpu-stabilization` to accelerate feature tracking and warping (requires OpenCV with CUDA)
+- **GPU-accelerated stabilization**: Use `--gpu-stabilization` to accelerate feature tracking and warping (requires OpenCV with CUDA support)
 - **Async processing**: Use `--async-sharpening` to overlap I/O and GPU computation for faster processing
 - **torch.compile()**: Automatically uses PyTorch 2.0+ compilation optimizations when available
-- **GPU-accelerated encoding**: Automatically uses NVENC for video encoding when available
+- **GPU-accelerated encoding**: Automatically uses NVENC for video encoding when available (requires ffmpeg with NVENC support)
 
 **To maximize GPU utilization:**
 - If you see low GPU memory usage, the pipeline will auto-increase tile size
 - You can manually set `--tile 800` for maximum GPU utilization (if memory allows)
 - Increase `--batch-size` to 8-16 for better frame loading overlap
-- Enable `--gpu-stabilization` for faster stabilization (if OpenCV CUDA is available)
+- Enable `--gpu-stabilization` for faster stabilization (requires OpenCV with CUDA support)
 - Enable `--async-sharpening` for better GPU utilization during sharpening
 
 ### Memory Usage
 
-- **CPU**: Low memory usage (~2-4 GB)
+- **CPU**: Low memory usage (~2-4 GB RAM)
 - **GPU**: Higher memory usage (~4-8 GB VRAM depending on resolution)
   - If you run out of GPU memory, the code will automatically use tiling
-  - You can also force CPU with `--device cpu`
+  - You can also force CPU with `--device cpu` or use `--tile` to reduce memory usage
 
 ## Troubleshooting
 
@@ -213,9 +186,11 @@ pip install realesrgan basicsr
 
 ### Memory Issues
 
-If you run out of memory during sharpening, modify `sharpen.py`:
-- Set `tile=400` in the RealESRGANer initialization
+If you run out of memory during sharpening:
+- Use the `--tile` parameter: `--tile 400` or `--tile 600`
 - This processes the image in tiles instead of all at once
+- Reduce `--batch-size` to 2 or 1 if needed
+- Use `--device cpu` to process on CPU instead of GPU
 
 ### GPU Not Detected
 
