@@ -1,5 +1,7 @@
 # Video Stabilization and Sharpening Pipeline
 
+https://github.com/user-attachments/assets/26d0fca9-2ace-4326-a3e7-356c41c93820
+
 This pipeline combines L1 optimal video stabilization with Real-ESRGAN sharpening to produce high-quality stabilized and enhanced videos.
 
 ## Overview
